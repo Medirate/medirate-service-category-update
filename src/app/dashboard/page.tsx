@@ -52,8 +52,10 @@ const FilterNote = ({ step }: { step: number }) => {
 };
 
 export default function Dashboard() {
-  // Update useData destructuring to include refreshFilters
-  const { data, loading, error, filterOptions, refreshData, refreshFilters } = useData();
+  const [data, setData] = useState<ServiceData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filterOptions, setFilterOptions] = useState<any>({});
 
   // Filter states
   const [selectedServiceCategory, setSelectedServiceCategory] = useState("");
@@ -67,6 +69,63 @@ export default function Dashboard() {
   const [startDate, setStartDate] = useState<Date | null>(new Date(2017, 0, 1));
   const [endDate, setEndDate] = useState<Date | null>(new Date());
   const [localError, setLocalError] = useState<string | null>(null);
+
+  // Fetch data directly
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/state-payment-comparison?mode=filters');
+        if (!response.ok) throw new Error('Failed to fetch data');
+        const result = await response.json();
+        
+        // Set initial filter options
+        if (result.filterOptions) {
+          setFilterOptions(result.filterOptions);
+          if (result.filterOptions.serviceCategories) {
+            setServiceCategories(result.filterOptions.serviceCategories);
+          }
+          if (result.filterOptions.states) {
+            setStates(result.filterOptions.states);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching initial data:', err);
+        setError('Failed to load initial data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Refresh data function
+  const refreshData = async (filters?: any) => {
+    try {
+      setLoading(true);
+      const queryParams = new URLSearchParams();
+      if (filters) {
+        Object.entries(filters).forEach(([key, value]) => {
+          if (value) queryParams.append(key, value as string);
+        });
+      }
+      
+      const response = await fetch(`/api/state-payment-comparison?${queryParams.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch data');
+      const result = await response.json();
+      
+      setData(result.data);
+      if (result.filterOptions) {
+        setFilterOptions(result.filterOptions);
+      }
+    } catch (err) {
+      console.error('Error refreshing data:', err);
+      setError('Failed to refresh data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Visibility states for dropdowns
   const [showServiceCategoryDropdown, setShowServiceCategoryDropdown] = useState(false);
@@ -123,25 +182,23 @@ export default function Dashboard() {
   // Update useEffect to handle initial filter options
   useEffect(() => {
     if (filterOptions?.serviceCategories) {
-      // Deduplicate and sort service categories, but do not change case
-      const normalizedCategories = Array.from(
+      const normalizedCategories = (Array.from(
         new Set(
           filterOptions.serviceCategories
-            .map(cat => cat?.trim())
+            .map((cat: string) => cat?.trim())
             .filter(Boolean)
         )
-      ).sort((a, b) => a.localeCompare(b));
+      ) as string[]).sort((a, b) => a.localeCompare(b));
       setServiceCategories(normalizedCategories);
     }
     if (filterOptions?.states) {
-      // Deduplicate and sort states, but do not change case
-      const normalizedStates = Array.from(
+      const normalizedStates = (Array.from(
         new Set(
           filterOptions.states
-            .map(state => state?.trim())
+            .map((state: string) => state?.trim())
             .filter(Boolean)
         )
-      ).sort((a, b) => a.localeCompare(b));
+      ) as string[]).sort((a, b) => a.localeCompare(b));
       setStates(normalizedStates);
     }
   }, [filterOptions]);
@@ -507,7 +564,7 @@ export default function Dashboard() {
     setProviderTypes([]);
 
     // Get states for this category
-    await refreshFilters(category);
+    await refreshData();
     
     // Update states dropdown
     setStates(filterOptions.states);
@@ -619,10 +676,7 @@ export default function Dashboard() {
 
     try {
       // Load all data for this category + state combination
-      await refreshData({
-        serviceCategory: selectedServiceCategory,
-        state: state
-      });
+      await refreshData();
 
       // Optionally, extract modifiers from the loaded data
       if (data.length > 0) {
@@ -654,11 +708,7 @@ export default function Dashboard() {
     setProviderTypes([]);
 
     // Refresh data with new filters
-    await refreshData({
-      serviceCategory: selectedServiceCategory,
-      state: selectedState,
-      serviceCode: code
-    });
+    await refreshData();
 
     // Update filter options from the response
     if (filterOptions) {
@@ -689,11 +739,7 @@ export default function Dashboard() {
     setProviderTypes([]);
 
     // Refresh data with new filters
-    await refreshData({
-      serviceCategory: selectedServiceCategory,
-      state: selectedState,
-      serviceDescription: desc
-    });
+    await refreshData();
 
     // Update filter options from the response
     if (filterOptions) {
@@ -733,7 +779,7 @@ export default function Dashboard() {
     setFilterStep(1);
 
     // Reset to initial filter options
-    await refreshFilters();
+    await refreshData();
     
     // Update filter options
     setServiceCategories(filterOptions.serviceCategories);
@@ -913,7 +959,7 @@ export default function Dashboard() {
         })
       });
       if (!res.ok) throw new Error('Failed to update');
-      refreshData();
+      await refreshData();
       setEditingRow(null);
       setEditRowData({});
     } catch (e) {
