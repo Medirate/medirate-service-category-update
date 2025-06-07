@@ -70,16 +70,15 @@ export default function Dashboard() {
   const [endDate, setEndDate] = useState<Date | null>(new Date());
   const [localError, setLocalError] = useState<string | null>(null);
 
-  // Fetch data directly
+  // Fetch initial filter options
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchInitialFilters = async () => {
       try {
         setLoading(true);
         const response = await fetch('/api/state-payment-comparison?mode=filters');
-        if (!response.ok) throw new Error('Failed to fetch data');
+        if (!response.ok) throw new Error('Failed to fetch filters');
         const result = await response.json();
         
-        // Set initial filter options
         if (result.filterOptions) {
           setFilterOptions(result.filterOptions);
           if (result.filterOptions.serviceCategories) {
@@ -90,42 +89,46 @@ export default function Dashboard() {
           }
         }
       } catch (err) {
-        console.error('Error fetching initial data:', err);
-        setError('Failed to load initial data');
+        console.error('Error fetching filters:', err);
+        setError('Failed to load filters');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    fetchInitialFilters();
   }, []);
 
-  // Refresh data function
-  const refreshData = async (filters?: any) => {
-    try {
-      setLoading(true);
-      const queryParams = new URLSearchParams();
-      if (filters) {
-        Object.entries(filters).forEach(([key, value]) => {
-          if (value) queryParams.append(key, value as string);
-        });
+  // Load data when service category and state are selected
+  useEffect(() => {
+    const loadData = async () => {
+      if (selectedServiceCategory && selectedState) {
+        try {
+          setLoading(true);
+          const queryParams = new URLSearchParams({
+            serviceCategory: selectedServiceCategory,
+            state: selectedState
+          });
+          
+          const response = await fetch(`/api/state-payment-comparison?${queryParams.toString()}`);
+          if (!response.ok) throw new Error('Failed to fetch data');
+          const result = await response.json();
+          
+          setData(result.data);
+          if (result.filterOptions) {
+            setFilterOptions(result.filterOptions);
+          }
+        } catch (err) {
+          console.error('Error fetching data:', err);
+          setError('Failed to load data');
+        } finally {
+          setLoading(false);
+        }
       }
-      
-      const response = await fetch(`/api/state-payment-comparison?${queryParams.toString()}`);
-      if (!response.ok) throw new Error('Failed to fetch data');
-      const result = await response.json();
-      
-      setData(result.data);
-      if (result.filterOptions) {
-        setFilterOptions(result.filterOptions);
-      }
-    } catch (err) {
-      console.error('Error refreshing data:', err);
-      setError('Failed to refresh data');
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    loadData();
+  }, [selectedServiceCategory, selectedState]);
 
   // Visibility states for dropdowns
   const [showServiceCategoryDropdown, setShowServiceCategoryDropdown] = useState(false);
@@ -541,9 +544,6 @@ export default function Dashboard() {
   };
 
   const handleServiceCategoryChange = async (category: string) => {
-    console.log('=== Service Category Change ===');
-    console.log('Selected category:', category);
-    
     setSelectedServiceCategory(category);
     setSelectedState("");
     setSelectedServiceCode("");
@@ -564,10 +564,19 @@ export default function Dashboard() {
     setProviderTypes([]);
 
     // Get states for this category
-    await refreshData();
-    
-    // Update states dropdown
-    setStates(filterOptions.states);
+    if (category) {
+      try {
+        const response = await fetch(`/api/state-payment-comparison?mode=filters&serviceCategory=${category}`);
+        if (!response.ok) throw new Error('Failed to fetch states');
+        const result = await response.json();
+        if (result.filterOptions?.states) {
+          setStates(result.filterOptions.states);
+        }
+      } catch (err) {
+        console.error('Error fetching states:', err);
+        setError('Failed to load states');
+      }
+    }
   };
 
   // Add a function to extract filter options from data
@@ -654,9 +663,6 @@ export default function Dashboard() {
 
   // Update the handleStateChange function
   const handleStateChange = async (state: string) => {
-    console.log('=== State Change ===');
-    console.log('Selected state:', state);
-    
     setSelectedState(state);
     setSelectedServiceCode("");
     setSelectedServiceDescription("");
@@ -669,23 +675,10 @@ export default function Dashboard() {
     // Reset dependent filter options
     setServiceCodes([]);
     setServiceDescriptions([]);
-      setPrograms([]);
-      setLocationRegions([]);
-      setModifiers([]);
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
     setProviderTypes([]);
-
-    try {
-      // Load all data for this category + state combination
-      await refreshData();
-
-      // Optionally, extract modifiers from the loaded data
-      if (data.length > 0) {
-        extractFilterOptionsFromData(data);
-      }
-    } catch (error) {
-      console.error('Error loading state data:', error);
-      setLocalError('Failed to load state data. Please try again.');
-    }
   };
 
   const handleServiceCodeChange = async (code: string) => {
@@ -964,6 +957,33 @@ export default function Dashboard() {
       setEditRowData({});
     } catch (e) {
       setLocalError('Failed to update row');
+    }
+  };
+
+  // Add refreshData function
+  const refreshData = async () => {
+    if (selectedServiceCategory && selectedState) {
+      try {
+        setLoading(true);
+        const queryParams = new URLSearchParams({
+          serviceCategory: selectedServiceCategory,
+          state: selectedState
+        });
+        
+        const response = await fetch(`/api/state-payment-comparison?${queryParams.toString()}`);
+        if (!response.ok) throw new Error('Failed to fetch data');
+        const result = await response.json();
+        
+        setData(result.data);
+        if (result.filterOptions) {
+          setFilterOptions(result.filterOptions);
+        }
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError('Failed to load data');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -1518,7 +1538,7 @@ export default function Dashboard() {
                           onChange={e => setEditRowData(data => ({ ...data, service_category: e.target.value }))}
                         />
                       ) : item.service_category}
-                    </td>
+                      </td>
                     <td className="p-4 text-sm text-gray-700 border-b">
                       {editingRow === item.id ? (
                         <input
@@ -1527,7 +1547,7 @@ export default function Dashboard() {
                           onChange={e => setEditRowData(data => ({ ...data, state: e.target.value }))}
                         />
                       ) : item.state}
-                    </td>
+                      </td>
                     <td className="p-4 text-sm text-gray-700 border-b">
                       {editingRow === item.id ? (
                         <input
@@ -1536,7 +1556,7 @@ export default function Dashboard() {
                           onChange={e => setEditRowData(data => ({ ...data, service_code: e.target.value }))}
                         />
                       ) : item.service_code}
-                    </td>
+                      </td>
                     <td className="p-4 text-sm text-gray-700 border-b">
                       {editingRow === item.id ? (
                         <input
@@ -1545,7 +1565,7 @@ export default function Dashboard() {
                           onChange={e => setEditRowData(data => ({ ...data, service_description: e.target.value }))}
                         />
                       ) : item.service_description}
-                    </td>
+                      </td>
                     <td className="p-4 text-sm text-gray-700 border-b">
                       {editingRow === item.id ? (
                         <input
@@ -1554,7 +1574,7 @@ export default function Dashboard() {
                           onChange={e => setEditRowData(data => ({ ...data, program: e.target.value }))}
                         />
                       ) : item.program}
-                    </td>
+                      </td>
                     <td className="p-4 text-sm text-gray-700 border-b">
                       {editingRow === item.id ? (
                         <input
