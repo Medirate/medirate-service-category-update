@@ -599,7 +599,15 @@ export default function Home() {
 
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold mb-6">Service Category Update</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Service Category Update</h1>
+        <a 
+          href="/dashboard" 
+          className="px-4 py-2 bg-[#004aad] text-white rounded-md hover:bg-[#003d8c] transition-colors"
+        >
+          Go to Dashboard
+        </a>
+      </div>
       {/* Search Bars and Filters Container */}
       <div className="p-4 rounded-lg mb-6" style={{ backgroundColor: "#004aad" }}>
         <div className="flex flex-col gap-4">
@@ -612,7 +620,7 @@ export default function Home() {
                 onChange={setProviderSearch}
                 placeholder="Search Provider Alerts by subject"
               />
-            </div>
+    </div>
 
             {/* Legislative Search */}
             <div className="flex-1 min-w-0">
@@ -1172,8 +1180,8 @@ export default function Home() {
                 </tbody>
               </table>
             </div>
-          </div>
-        </div>
+                </div>
+              </div>
       )}
 
       {/* Popup for AI Summary */}
@@ -1188,8 +1196,8 @@ export default function Home() {
             >
               Close
             </button>
-          </div>
-        </div>
+                </div>
+              </div>
       )}
 
       {/* Optionally, display saveError if present */}

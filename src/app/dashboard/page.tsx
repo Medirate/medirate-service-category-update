@@ -1011,6 +1011,38 @@ export default function Dashboard() {
   // Update the Date Range fields to disable them when a Fee Schedule Date is selected
   const isDateRangeDisabled = !!selectedFeeScheduleDate;
 
+  // Add new state for editing
+  const [editingRow, setEditingRow] = useState<string | null>(null);
+  const [editRowData, setEditRowData] = useState<Partial<ServiceData>>({});
+
+  // Add save handler
+  const handleSave = async (row: ServiceData) => {
+    try {
+      const res = await fetch('/api/update-master-data', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          id: row.id,
+          service_category: editRowData.service_category,
+          state_name: editRowData.state_name,
+          service_code: editRowData.service_code,
+          service_description: editRowData.service_description,
+          program: editRowData.program,
+          location_region: editRowData.location_region,
+          provider_type: editRowData.provider_type,
+          modifier_1: editRowData.modifier_1,
+          rate_effective_date: editRowData.rate_effective_date
+        })
+      });
+      if (!res.ok) throw new Error('Failed to update');
+      refreshData();
+      setEditingRow(null);
+      setEditRowData({});
+    } catch (e) {
+      setLocalError('Failed to update row');
+    }
+  };
+
   // Don't render anything until the subscription check is complete
   if (isLoading || !isAuthenticated || !isSubscriptionCheckComplete) {
     return (
@@ -1553,77 +1585,121 @@ export default function Dashboard() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {sortedData.map((item, index) => (
-                  <tr key={index} className="hover:bg-gray-50 transition-colors">
-                    {getVisibleColumns.state_name && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.state_name || '-'}</td>
-                    )}
-                    {getVisibleColumns.service_category && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category || '-'}</td>
-                    )}
-                    {getVisibleColumns.service_code && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code || '-'}</td>
-                    )}
-                    {getVisibleColumns.service_description && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_description || '-'}</td>
-                    )}
-                    {getVisibleColumns.duration_unit && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.duration_unit || '-'}</td>
-                    )}
-                    {getVisibleColumns.rate && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate || '-'}</td>
-                    )}
-                    {getVisibleColumns.rate_per_hour && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {(() => {
-                          const rateStr = (item.rate || '').replace('$', '');
-                          const rate = parseFloat(rateStr);
-                          const durationUnit = item.duration_unit?.toUpperCase();
-                          
-                          if (isNaN(rate)) return '-';
-                          
-                          if (durationUnit === '15 MINUTES') {
-                            return `$${(rate * 4).toFixed(2)}`;
-                          } else if (durationUnit === '30 MINUTES') {
-                            return `$${(rate * 2).toFixed(2)}`;
-                          } else if (durationUnit === 'PER HOUR') {
-                            return `$${rate.toFixed(2)}`;
-                          }
-                          return 'N/A';
-                        })()}
-                      </td>
-                    )}
-                    {getVisibleColumns.rate_effective_date && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate_effective_date || '-'}</td>
-                    )}
-                    {getVisibleColumns.modifier_1 && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.modifier_1 ? `${item.modifier_1}${item.modifier_1_details ? ` - ${item.modifier_1_details}` : ''}` : '-'}
-                      </td>
-                    )}
-                    {getVisibleColumns.modifier_2 && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.modifier_2 ? `${item.modifier_2}${item.modifier_2_details ? ` - ${item.modifier_2_details}` : ''}` : '-'}
-                      </td>
-                    )}
-                    {getVisibleColumns.modifier_3 && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.modifier_3 ? `${item.modifier_3}${item.modifier_3_details ? ` - ${item.modifier_3_details}` : ''}` : '-'}
-                      </td>
-                    )}
-                    {getVisibleColumns.modifier_4 && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.modifier_4 ? `${item.modifier_4}${item.modifier_4_details ? ` - ${item.modifier_4_details}` : ''}` : '-'}
-                      </td>
-                    )}
-                    {getVisibleColumns.program && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.program || '-'}</td>
-                    )}
-                    {getVisibleColumns.location_region && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.location_region || '-'}</td>
-                    )}
-                    {getVisibleColumns.provider_type && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.provider_type || '-'}</td>
-                    )}
+                  <tr key={item.id || index} className="border-b hover:bg-gray-100">
+                    <td className="p-4 text-sm text-gray-700 border-b">
+                      {editingRow === item.id ? (
+                        <input
+                          className="border px-2 py-1 rounded w-32"
+                          value={editRowData.service_category ?? item.service_category ?? ''}
+                          onChange={e => setEditRowData(data => ({ ...data, service_category: e.target.value }))}
+                        />
+                      ) : item.service_category}
+                    </td>
+                    <td className="p-4 text-sm text-gray-700 border-b">
+                      {editingRow === item.id ? (
+                        <input
+                          className="border px-2 py-1 rounded w-32"
+                          value={editRowData.state ?? item.state ?? ''}
+                          onChange={e => setEditRowData(data => ({ ...data, state: e.target.value }))}
+                        />
+                      ) : item.state}
+                    </td>
+                    <td className="p-4 text-sm text-gray-700 border-b">
+                      {editingRow === item.id ? (
+                        <input
+                          className="border px-2 py-1 rounded w-32"
+                          value={editRowData.service_code ?? item.service_code ?? ''}
+                          onChange={e => setEditRowData(data => ({ ...data, service_code: e.target.value }))}
+                        />
+                      ) : item.service_code}
+                    </td>
+                    <td className="p-4 text-sm text-gray-700 border-b">
+                      {editingRow === item.id ? (
+                        <input
+                          className="border px-2 py-1 rounded w-64"
+                          value={editRowData.service_description ?? item.service_description ?? ''}
+                          onChange={e => setEditRowData(data => ({ ...data, service_description: e.target.value }))}
+                        />
+                      ) : item.service_description}
+                    </td>
+                    <td className="p-4 text-sm text-gray-700 border-b">
+                      {editingRow === item.id ? (
+                        <input
+                          className="border px-2 py-1 rounded w-32"
+                          value={editRowData.program ?? item.program ?? ''}
+                          onChange={e => setEditRowData(data => ({ ...data, program: e.target.value }))}
+                        />
+                      ) : item.program}
+                    </td>
+                    <td className="p-4 text-sm text-gray-700 border-b">
+                      {editingRow === item.id ? (
+                        <input
+                          className="border px-2 py-1 rounded w-32"
+                          value={editRowData.location_region ?? item.location_region ?? ''}
+                          onChange={e => setEditRowData(data => ({ ...data, location_region: e.target.value }))}
+                        />
+                      ) : item.location_region}
+                    </td>
+                    <td className="p-4 text-sm text-gray-700 border-b">
+                      {editingRow === item.id ? (
+                        <input
+                          className="border px-2 py-1 rounded w-32"
+                          value={editRowData.provider_type ?? item.provider_type ?? ''}
+                          onChange={e => setEditRowData(data => ({ ...data, provider_type: e.target.value }))}
+                        />
+                      ) : item.provider_type}
+                    </td>
+                    <td className="p-4 text-sm text-gray-700 border-b">
+                      {editingRow === item.id ? (
+                        <input
+                          className="border px-2 py-1 rounded w-32"
+                          value={editRowData.modifier ?? item.modifier ?? ''}
+                          onChange={e => setEditRowData(data => ({ ...data, modifier: e.target.value }))}
+                        />
+                      ) : item.modifier}
+                    </td>
+                    <td className="p-4 text-sm text-gray-700 border-b">
+                      {editingRow === item.id ? (
+                        <input
+                          className="border px-2 py-1 rounded w-32"
+                          value={editRowData.fee_schedule_date ?? item.fee_schedule_date ?? ''}
+                          onChange={e => setEditRowData(data => ({ ...data, fee_schedule_date: e.target.value }))}
+                        />
+                      ) : item.fee_schedule_date}
+                    </td>
+                    <td className="p-4 text-sm text-gray-700 border-b">
+                      {editingRow === item.id ? (
+                        <>
+                          <button
+                            className="px-2 py-1 bg-green-600 text-white rounded mr-2"
+                            onClick={() => handleSave(item)}
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="px-2 py-1 bg-gray-300 rounded"
+                            onClick={() => {
+                              setEditingRow(null);
+                              setEditRowData({});
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          className="px-2 py-1 bg-yellow-500 text-white rounded"
+                          onClick={() => {
+                            if (item.id) {
+                              setEditingRow(item.id);
+                              setEditRowData(item);
+                            }
+                          }}
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
