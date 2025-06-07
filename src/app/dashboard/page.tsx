@@ -8,8 +8,6 @@ import "react-datepicker/dist/react-datepicker.css";
 import { useData, ServiceData } from "@/context/DataContext";
 import CodeDefinitionsIcon from '@/app/components/CodeDefinitionsIcon';
 import Select from 'react-select';
-import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
-import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
 // Initialize Supabase Client
@@ -54,126 +52,6 @@ const FilterNote = ({ step }: { step: number }) => {
 };
 
 export default function Dashboard() {
-  const { isAuthenticated, isLoading, user } = useKindeBrowserClient();
-  const router = useRouter();
-  const [isSubscriptionCheckComplete, setIsSubscriptionCheckComplete] = useState(false);
-
-  useEffect(() => {
-    console.log('Auth State:', { isLoading, isAuthenticated, userEmail: user?.email });
-    if (!isLoading && !isAuthenticated) {
-      console.log('❌ Not authenticated, redirecting to login');
-      router.push("/api/auth/login");
-    } else if (isAuthenticated) {
-      console.log('✅ Authenticated, checking subscription');
-      checkSubscriptionAndSubUser();
-    }
-  }, [isAuthenticated, isLoading, router]);
-
-  const checkSubscriptionAndSubUser = async () => {
-    const userEmail = user?.email ?? "";
-    const kindeUserId = user?.id ?? "";
-    console.log('🔍 Checking subscription for:', { userEmail, kindeUserId });
-    
-    if (!userEmail || !kindeUserId) {
-      console.log('❌ Missing user email or ID');
-      return;
-    }
-
-    try {
-      // Check if the user is a sub-user
-      console.log('🔍 Checking if user is a sub-user...');
-      const { data: subUserData, error: subUserError } = await supabase
-        .from("subscription_users")
-        .select("sub_users")
-        .contains("sub_users", JSON.stringify([userEmail]));
-
-      if (subUserError) {
-        console.error("❌ Error checking sub-user:", subUserError);
-        console.error("Full error object:", JSON.stringify(subUserError, null, 2));
-        return;
-      }
-
-      console.log('📊 Sub-user check result:', { subUserData });
-
-      if (subUserData && subUserData.length > 0) {
-        console.log('✅ User is a sub-user, checking User table...');
-        // Check if the user already exists in the User table
-        const { data: existingUser, error: fetchError } = await supabase
-          .from("User")
-          .select("Email")
-          .eq("Email", userEmail)
-          .single();
-
-        if (fetchError && fetchError.code !== "PGRST116") { // Ignore "no rows found" error
-          console.error("❌ Error fetching user:", fetchError);
-          return;
-        }
-
-        console.log('📊 Existing user check result:', { existingUser });
-
-        if (existingUser) {
-          console.log('🔄 Updating existing user role to sub-user...');
-          // User exists, update their role to "sub-user"
-          const { error: updateError } = await supabase
-            .from("User")
-            .update({ Role: "sub-user", UpdatedAt: new Date().toISOString() })
-            .eq("Email", userEmail);
-
-          if (updateError) {
-            console.error("❌ Error updating user role:", updateError);
-          } else {
-            console.log("✅ User role updated to sub-user:", userEmail);
-          }
-        } else {
-          console.log('➕ Inserting new sub-user...');
-          // User does not exist, insert them as a sub-user
-          const { error: insertError } = await supabase
-            .from("User")
-            .insert({
-              KindeUserID: kindeUserId,
-              Email: userEmail,
-              Role: "sub-user",
-              UpdatedAt: new Date().toISOString(),
-            });
-
-          if (insertError) {
-            console.error("❌ Error inserting sub-user:", insertError);
-          } else {
-            console.log("✅ Sub-user inserted successfully:", userEmail);
-          }
-        }
-
-        // Allow sub-user to access the dashboard
-        console.log('✅ Sub-user access granted');
-        setIsSubscriptionCheckComplete(true);
-        return;
-      }
-
-      // If not a sub-user, check for an active subscription
-      console.log('🔍 Checking for active subscription...');
-      const response = await fetch("/api/stripe/subscription", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: userEmail }),
-      });
-
-      const data = await response.json();
-      console.log('📊 Subscription check result:', data);
-
-      if (data.error || data.status === 'no_customer' || data.status === 'no_subscription' || data.status === 'no_items') {
-        console.log('❌ No active subscription, redirecting to subscribe page');
-        router.push("/subscribe");
-      } else {
-        console.log('✅ Active subscription found');
-        setIsSubscriptionCheckComplete(true);
-      }
-    } catch (error) {
-      console.error("❌ Error in subscription check:", error);
-      console.log('❌ Redirecting to subscribe page due to error');
-      router.push("/subscribe");
-    }
-  };
-
   // Update useData destructuring to include refreshFilters
   const { data, loading, error, filterOptions, refreshData, refreshFilters } = useData();
 
@@ -1043,8 +921,8 @@ export default function Dashboard() {
     }
   };
 
-  // Don't render anything until the subscription check is complete
-  if (isLoading || !isAuthenticated || !isSubscriptionCheckComplete) {
+  // Remove the loading check for authentication
+  if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
         <FaSpinner className="animate-spin h-12 w-12 text-blue-500" />
