@@ -675,9 +675,9 @@ export default function Dashboard() {
     // Reset dependent filter options
     setServiceCodes([]);
     setServiceDescriptions([]);
-    setPrograms([]);
-    setLocationRegions([]);
-    setModifiers([]);
+      setPrograms([]);
+      setLocationRegions([]);
+      setModifiers([]);
     setProviderTypes([]);
   };
 
@@ -957,6 +957,26 @@ export default function Dashboard() {
       setEditRowData({});
     } catch (e) {
       setLocalError('Failed to update row');
+    }
+  };
+
+  // Add delete handler
+  const handleDelete = async (id: string) => {
+    if (!confirm(`Are you sure you want to delete entry with id ${id}?`)) return;
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/delete-master-data`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      if (!res.ok) throw new Error('Failed to delete');
+      // Remove the deleted row from the UI
+      setData(prev => prev.filter(row => row.id !== id));
+    } catch (e) {
+      setLocalError('Failed to delete row');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1390,6 +1410,7 @@ export default function Dashboard() {
             <table className="min-w-full">
               <thead className="bg-gray-50 sticky top-[5.5rem] z-20">
                 <tr>
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">ID</th>
                   {getVisibleColumns.state_name && (
                     <th
                       className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
@@ -1530,6 +1551,7 @@ export default function Dashboard() {
               <tbody className="divide-y divide-gray-200">
                 {sortedData.map((item, index) => (
                   <tr key={item.id || index} className="border-b hover:bg-gray-100">
+                    <td className="p-4 text-sm text-gray-700 border-b">{item.id}</td>
                     <td className="p-4 text-sm text-gray-700 border-b">
                       {editingRow === item.id ? (
                         <input
@@ -1538,7 +1560,7 @@ export default function Dashboard() {
                           onChange={e => setEditRowData(data => ({ ...data, service_category: e.target.value }))}
                         />
                       ) : item.service_category}
-                      </td>
+                    </td>
                     <td className="p-4 text-sm text-gray-700 border-b">
                       {editingRow === item.id ? (
                         <input
@@ -1547,7 +1569,7 @@ export default function Dashboard() {
                           onChange={e => setEditRowData(data => ({ ...data, state: e.target.value }))}
                         />
                       ) : item.state}
-                      </td>
+                    </td>
                     <td className="p-4 text-sm text-gray-700 border-b">
                       {editingRow === item.id ? (
                         <input
@@ -1556,7 +1578,7 @@ export default function Dashboard() {
                           onChange={e => setEditRowData(data => ({ ...data, service_code: e.target.value }))}
                         />
                       ) : item.service_code}
-                      </td>
+                    </td>
                     <td className="p-4 text-sm text-gray-700 border-b">
                       {editingRow === item.id ? (
                         <input
@@ -1565,7 +1587,7 @@ export default function Dashboard() {
                           onChange={e => setEditRowData(data => ({ ...data, service_description: e.target.value }))}
                         />
                       ) : item.service_description}
-                      </td>
+                    </td>
                     <td className="p-4 text-sm text-gray-700 border-b">
                       {editingRow === item.id ? (
                         <input
@@ -1574,7 +1596,7 @@ export default function Dashboard() {
                           onChange={e => setEditRowData(data => ({ ...data, program: e.target.value }))}
                         />
                       ) : item.program}
-                      </td>
+                    </td>
                     <td className="p-4 text-sm text-gray-700 border-b">
                       {editingRow === item.id ? (
                         <input
@@ -1616,12 +1638,12 @@ export default function Dashboard() {
                         <>
                           <button
                             className="px-2 py-1 bg-green-600 text-white rounded mr-2"
-                            onClick={() => handleSave(item)}
+                            onClick={() => handleSave({ ...item, id: item.id })}
                           >
                             Save
                           </button>
                           <button
-                            className="px-2 py-1 bg-gray-300 rounded"
+                            className="px-2 py-1 bg-gray-300 rounded mr-2"
                             onClick={() => {
                               setEditingRow(null);
                               setEditRowData({});
@@ -1629,19 +1651,33 @@ export default function Dashboard() {
                           >
                             Cancel
                           </button>
+                          <button
+                            className="px-2 py-1 bg-red-600 text-white rounded"
+                            onClick={() => { if (item.id) handleDelete(item.id); }}
+                          >
+                            Delete
+                          </button>
                         </>
                       ) : (
-                        <button
-                          className="px-2 py-1 bg-yellow-500 text-white rounded"
-                          onClick={() => {
-                            if (item.id) {
-                              setEditingRow(item.id);
-                              setEditRowData(item);
-                            }
-                          }}
-                        >
-                          Edit
-                        </button>
+                        <>
+                          <button
+                            className="px-2 py-1 bg-yellow-500 text-white rounded mr-2"
+                            onClick={() => {
+                              if (item.id) {
+                                setEditingRow(item.id);
+                                setEditRowData(item);
+                              }
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="px-2 py-1 bg-red-600 text-white rounded"
+                            onClick={() => { if (item.id) handleDelete(item.id); }}
+                          >
+                            Delete
+                          </button>
+                        </>
                       )}
                     </td>
                   </tr>

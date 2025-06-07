@@ -597,6 +597,40 @@ export default function Home() {
     }
   }
 
+  // Add delete handler for provider alerts
+  async function handleDeleteProviderAlert(link: string | null | undefined) {
+    if (!link) return;
+    if (!confirm(`Are you sure you want to delete entry with link ${link}?`)) return;
+    try {
+      const res = await fetch('/api/delete-master-data', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table: 'provider_alerts', link })
+      });
+      if (!res.ok) throw new Error('Failed to delete');
+      setProviderAlerts(alerts => alerts.filter(a => a.link !== link));
+    } catch (e) {
+      setSaveError('Failed to delete entry.');
+    }
+  }
+
+  // Add delete handler for legislative updates
+  async function handleDeleteBill(url: string) {
+    if (!url) return;
+    if (!confirm(`Are you sure you want to delete entry with url ${url}?`)) return;
+    try {
+      const res = await fetch('/api/delete-master-data', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table: 'bills_test_by_dev', url })
+      });
+      if (!res.ok) throw new Error('Failed to delete');
+      setLegislativeUpdates(bills => bills.filter(b => b.url !== url));
+    } catch (e) {
+      setSaveError('Failed to delete entry.');
+    }
+  }
+
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-6">
@@ -836,10 +870,14 @@ export default function Home() {
                                 } catch (e) { setCatError('Failed to update'); }
                                 setCatLoading(false);
                               }}>Save</button>
-                              <button className="px-2 py-1 bg-gray-300 rounded" onClick={() => { setEditingProviderLinkRow(null); setProviderEditRow({}); }}>Cancel</button>
+                              <button className="px-2 py-1 bg-gray-300 rounded mr-2" onClick={() => { setEditingProviderLinkRow(null); setProviderEditRow({}); }}>Cancel</button>
+                              <button className="px-2 py-1 bg-red-600 text-white rounded" onClick={() => handleDeleteProviderAlert(alert.link)}>Delete</button>
                             </>
                           ) : (
-                            <button className="px-2 py-1 bg-yellow-500 text-white rounded" onClick={() => { setEditingProviderLinkRow(rowKey); setProviderEditRow(alert); }}>Edit</button>
+                            <>
+                              <button className="px-2 py-1 bg-yellow-500 text-white rounded mr-2" onClick={() => { setEditingProviderLinkRow(rowKey); setProviderEditRow(alert); }}>Edit</button>
+                              <button className="px-2 py-1 bg-red-600 text-white rounded" onClick={() => handleDeleteProviderAlert(alert.link)}>Delete</button>
+                            </>
                           )}
                         </td>
                       </tr>
@@ -951,10 +989,14 @@ export default function Home() {
                               } catch (e) { setCatError('Failed to update'); }
                               setCatLoading(false);
                             }}>Save</button>
-                            <button className="px-2 py-1 bg-gray-300 rounded" onClick={() => { setEditingBillUrlRow(null); setBillEditRow({}); }}>Cancel</button>
+                            <button className="px-2 py-1 bg-gray-300 rounded mr-2" onClick={() => { setEditingBillUrlRow(null); setBillEditRow({}); }}>Cancel</button>
+                            <button className="px-2 py-1 bg-red-600 text-white rounded" onClick={() => handleDeleteBill(bill.url)}>Delete</button>
                           </>
                         ) : (
-                          <button className="px-2 py-1 bg-yellow-500 text-white rounded" onClick={() => { setEditingBillUrlRow(bill.url); setBillEditRow(bill); }}>Edit</button>
+                          <>
+                            <button className="px-2 py-1 bg-yellow-500 text-white rounded mr-2" onClick={() => { setEditingBillUrlRow(bill.url); setBillEditRow(bill); }}>Edit</button>
+                            <button className="px-2 py-1 bg-red-600 text-white rounded" onClick={() => handleDeleteBill(bill.url)}>Delete</button>
+                          </>
                         )}
                       </td>
                     </tr>
@@ -1057,10 +1099,14 @@ export default function Home() {
                                 } catch (e) { setCatError('Failed to update'); }
                                 setCatLoading(false);
                               }}>Save</button>
-                              <button className="px-2 py-1 bg-gray-300 rounded" onClick={() => { setEditingProviderLinkRow(null); setProviderEditRow({}); }}>Cancel</button>
+                              <button className="px-2 py-1 bg-gray-300 rounded mr-2" onClick={() => { setEditingProviderLinkRow(null); setProviderEditRow({}); }}>Cancel</button>
+                              <button className="px-2 py-1 bg-red-600 text-white rounded" onClick={() => handleDeleteProviderAlert(alert.link)}>Delete</button>
                             </>
                           ) : (
-                            <button className="px-2 py-1 bg-yellow-500 text-white rounded" onClick={() => { setEditingProviderLinkRow(rowKey); setProviderEditRow(alert); }}>Edit</button>
+                            <>
+                              <button className="px-2 py-1 bg-yellow-500 text-white rounded mr-2" onClick={() => { setEditingProviderLinkRow(rowKey); setProviderEditRow(alert); }}>Edit</button>
+                              <button className="px-2 py-1 bg-red-600 text-white rounded" onClick={() => handleDeleteProviderAlert(alert.link)}>Delete</button>
+                            </>
                           )}
                         </td>
                       </tr>
@@ -1169,10 +1215,14 @@ export default function Home() {
                               } catch (e) { setCatError('Failed to update'); }
                               setCatLoading(false);
                             }}>Save</button>
-                            <button className="px-2 py-1 bg-gray-300 rounded" onClick={() => { setEditingBillUrlRow(null); setBillEditRow({}); }}>Cancel</button>
+                            <button className="px-2 py-1 bg-gray-300 rounded mr-2" onClick={() => { setEditingBillUrlRow(null); setBillEditRow({}); }}>Cancel</button>
+                            <button className="px-2 py-1 bg-red-600 text-white rounded" onClick={() => handleDeleteBill(bill.url)}>Delete</button>
                           </>
                         ) : (
-                          <button className="px-2 py-1 bg-yellow-500 text-white rounded" onClick={() => { setEditingBillUrlRow(bill.url); setBillEditRow(bill); }}>Edit</button>
+                          <>
+                            <button className="px-2 py-1 bg-yellow-500 text-white rounded mr-2" onClick={() => { setEditingBillUrlRow(bill.url); setBillEditRow(bill); }}>Edit</button>
+                            <button className="px-2 py-1 bg-red-600 text-white rounded" onClick={() => handleDeleteBill(bill.url)}>Delete</button>
+                          </>
                         )}
                       </td>
                     </tr>
