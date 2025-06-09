@@ -835,43 +835,30 @@ export default function Dashboard() {
   // Update the getVisibleColumns function
   const getVisibleColumns = useMemo(() => {
     const columns = {
-      state_name: false,
-      service_category: false,
-      service_code: false,
-      service_description: false,
-      program: false,
-      location_region: false,
-      modifier_1: false,
-      modifier_2: false,
-      modifier_3: false,
-      modifier_4: false,
-      duration_unit: false,
-      rate: false,
-      rate_per_hour: false,
-      rate_effective_date: false,
-      provider_type: false
+      state_name: true, // Always show state
+      service_category: true, // Always show service category
+      service_code: true, // Always show service code
+      service_description: true, // Always show service description
+      program: true, // Always show program
+      location_region: true, // Always show location/region
+      modifier_1: true, // Always show modifier 1
+      modifier_2: true, // Always show modifier 2
+      modifier_3: true, // Always show modifier 3
+      modifier_4: true, // Always show modifier 4
+      duration_unit: true, // Always show duration unit
+      rate: true, // Always show rate
+      rate_per_hour: true, // Always show rate per hour
+      rate_effective_date: true, // Always show rate effective date
+      provider_type: true // Always show provider type
     };
 
+    // Add debugging
     if (filteredData.length > 0) {
-      filteredData.forEach(item => {
-        const rateStr = (item.rate || '').replace('$', '');
-        const rate = parseFloat(rateStr);
-        const durationUnit = item.duration_unit?.toUpperCase();
-        
-        if (!isNaN(rate) && 
-            (durationUnit === '15 MINUTES' || 
-             durationUnit === '30 MINUTES' || 
-             durationUnit === 'PER HOUR')) {
-          columns.rate_per_hour = true;
-        }
-        
-        Object.keys(columns).forEach((key) => {
-          const columnKey = key as keyof typeof columns;
-          if (item[columnKey] && item[columnKey] !== '-') {
-            columns[columnKey] = true;
-          }
-        });
-      });
+      console.log('=== Column Visibility Debug ===');
+      console.log('First row sample:', filteredData[0]);
+      console.log('Rate value:', filteredData[0].rate);
+      console.log('Duration unit:', filteredData[0].duration_unit);
+      console.log('Rate per hour:', filteredData[0].rate_per_hour);
     }
 
     return columns;
@@ -935,28 +922,51 @@ export default function Dashboard() {
   // Add save handler
   const handleSave = async (row: ServiceData) => {
     try {
+      console.log('Saving row:', { ...row, ...editRowData }); // Debug log
       const res = await fetch('/api/update-master-data', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           id: row.id,
-          service_category: editRowData.service_category,
-          state_name: editRowData.state_name,
-          service_code: editRowData.service_code,
-          service_description: editRowData.service_description,
-          program: editRowData.program,
-          location_region: editRowData.location_region,
-          provider_type: editRowData.provider_type,
-          modifier_1: editRowData.modifier_1,
-          rate_effective_date: editRowData.rate_effective_date
+          service_category: editRowData.service_category ?? row.service_category,
+          state_name: editRowData.state_name ?? row.state_name,
+          service_code: editRowData.service_code ?? row.service_code,
+          service_description: editRowData.service_description ?? row.service_description,
+          program: editRowData.program ?? row.program,
+          location_region: editRowData.location_region ?? row.location_region,
+          provider_type: editRowData.provider_type ?? row.provider_type,
+          modifier_1: editRowData.modifier_1 ?? row.modifier_1,
+          modifier_2: editRowData.modifier_2 ?? row.modifier_2,
+          modifier_3: editRowData.modifier_3 ?? row.modifier_3,
+          modifier_4: editRowData.modifier_4 ?? row.modifier_4,
+          duration_unit: editRowData.duration_unit ?? row.duration_unit,
+          rate: editRowData.rate ?? row.rate,
+          rate_per_hour: editRowData.rate_per_hour ?? row.rate_per_hour,
+          rate_effective_date: editRowData.rate_effective_date ?? row.rate_effective_date,
+          modifier_1_details: editRowData.modifier_1_details ?? row.modifier_1_details,
+          modifier_2_details: editRowData.modifier_2_details ?? row.modifier_2_details,
+          modifier_3_details: editRowData.modifier_3_details ?? row.modifier_3_details,
+          modifier_4_details: editRowData.modifier_4_details ?? row.modifier_4_details
         })
       });
-      if (!res.ok) throw new Error('Failed to update');
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        console.error('Failed to update:', errorData);
+        throw new Error(errorData?.message || 'Failed to update');
+      }
+      
+      const result = await res.json();
+      console.log('Update successful:', result); // Debug log
+      
+      // Refresh the data to show the updated values
       await refreshData();
       setEditingRow(null);
       setEditRowData({});
+      setLocalError(null); // Clear any previous errors
     } catch (e) {
-      setLocalError('Failed to update row');
+      console.error('Error saving row:', e);
+      setLocalError(e instanceof Error ? e.message : 'Failed to update row');
     }
   };
 
@@ -1552,93 +1562,178 @@ export default function Dashboard() {
                 {sortedData.map((item, index) => (
                   <tr key={item.id || index} className="border-b hover:bg-gray-100">
                     <td className="p-4 text-sm text-gray-700 border-b">{item.id}</td>
-                    <td className="p-4 text-sm text-gray-700 border-b">
-                      {editingRow === item.id ? (
-                        <input
-                          className="border px-2 py-1 rounded w-32"
-                          value={editRowData.service_category ?? item.service_category ?? ''}
-                          onChange={e => setEditRowData(data => ({ ...data, service_category: e.target.value }))}
-                        />
-                      ) : item.service_category}
-                    </td>
-                    <td className="p-4 text-sm text-gray-700 border-b">
-                      {editingRow === item.id ? (
-                        <input
-                          className="border px-2 py-1 rounded w-32"
-                          value={editRowData.state ?? item.state ?? ''}
-                          onChange={e => setEditRowData(data => ({ ...data, state: e.target.value }))}
-                        />
-                      ) : item.state}
-                    </td>
-                    <td className="p-4 text-sm text-gray-700 border-b">
-                      {editingRow === item.id ? (
-                        <input
-                          className="border px-2 py-1 rounded w-32"
-                          value={editRowData.service_code ?? item.service_code ?? ''}
-                          onChange={e => setEditRowData(data => ({ ...data, service_code: e.target.value }))}
-                        />
-                      ) : item.service_code}
-                    </td>
-                    <td className="p-4 text-sm text-gray-700 border-b">
-                      {editingRow === item.id ? (
-                        <input
-                          className="border px-2 py-1 rounded w-64"
-                          value={editRowData.service_description ?? item.service_description ?? ''}
-                          onChange={e => setEditRowData(data => ({ ...data, service_description: e.target.value }))}
-                        />
-                      ) : item.service_description}
-                    </td>
-                    <td className="p-4 text-sm text-gray-700 border-b">
-                      {editingRow === item.id ? (
-                        <input
-                          className="border px-2 py-1 rounded w-32"
-                          value={editRowData.program ?? item.program ?? ''}
-                          onChange={e => setEditRowData(data => ({ ...data, program: e.target.value }))}
-                        />
-                      ) : item.program}
-                    </td>
-                    <td className="p-4 text-sm text-gray-700 border-b">
-                      {editingRow === item.id ? (
-                        <input
-                          className="border px-2 py-1 rounded w-32"
-                          value={editRowData.location_region ?? item.location_region ?? ''}
-                          onChange={e => setEditRowData(data => ({ ...data, location_region: e.target.value }))}
-                        />
-                      ) : item.location_region}
-                    </td>
-                    <td className="p-4 text-sm text-gray-700 border-b">
-                      {editingRow === item.id ? (
-                        <input
-                          className="border px-2 py-1 rounded w-32"
-                          value={editRowData.provider_type ?? item.provider_type ?? ''}
-                          onChange={e => setEditRowData(data => ({ ...data, provider_type: e.target.value }))}
-                        />
-                      ) : item.provider_type}
-                    </td>
-                    <td className="p-4 text-sm text-gray-700 border-b">
-                      {editingRow === item.id ? (
-                        <input
-                          className="border px-2 py-1 rounded w-32"
-                          value={editRowData.modifier ?? item.modifier ?? ''}
-                          onChange={e => setEditRowData(data => ({ ...data, modifier: e.target.value }))}
-                        />
-                      ) : item.modifier}
-                    </td>
-                    <td className="p-4 text-sm text-gray-700 border-b">
-                      {editingRow === item.id ? (
-                        <input
-                          className="border px-2 py-1 rounded w-32"
-                          value={editRowData.fee_schedule_date ?? item.fee_schedule_date ?? ''}
-                          onChange={e => setEditRowData(data => ({ ...data, fee_schedule_date: e.target.value }))}
-                        />
-                      ) : item.fee_schedule_date}
-                    </td>
+                    {getVisibleColumns.state_name && (
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {editingRow === item.id ? (
+                          <input
+                            className="border px-2 py-1 rounded w-32"
+                            value={editRowData.state_name ?? item.state_name ?? ''}
+                            onChange={e => setEditRowData(data => ({ ...data, state_name: e.target.value }))}
+                          />
+                        ) : formatText(item.state_name)}
+                      </td>
+                    )}
+                    {getVisibleColumns.service_category && (
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {editingRow === item.id ? (
+                          <input
+                            className="border px-2 py-1 rounded w-32"
+                            value={editRowData.service_category ?? item.service_category ?? ''}
+                            onChange={e => setEditRowData(data => ({ ...data, service_category: e.target.value }))}
+                          />
+                        ) : formatText(item.service_category)}
+                      </td>
+                    )}
+                    {getVisibleColumns.service_code && (
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {editingRow === item.id ? (
+                          <input
+                            className="border px-2 py-1 rounded w-32"
+                            value={editRowData.service_code ?? item.service_code ?? ''}
+                            onChange={e => setEditRowData(data => ({ ...data, service_code: e.target.value }))}
+                          />
+                        ) : formatText(item.service_code)}
+                      </td>
+                    )}
+                    {getVisibleColumns.service_description && (
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {editingRow === item.id ? (
+                          <input
+                            className="border px-2 py-1 rounded w-64"
+                            value={editRowData.service_description ?? item.service_description ?? ''}
+                            onChange={e => setEditRowData(data => ({ ...data, service_description: e.target.value }))}
+                          />
+                        ) : formatText(item.service_description)}
+                      </td>
+                    )}
+                    {getVisibleColumns.duration_unit && (
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {editingRow === item.id ? (
+                          <input
+                            className="border px-2 py-1 rounded w-32"
+                            value={editRowData.duration_unit ?? item.duration_unit ?? ''}
+                            onChange={e => setEditRowData(data => ({ ...data, duration_unit: e.target.value }))}
+                          />
+                        ) : formatText(item.duration_unit)}
+                      </td>
+                    )}
+                    {getVisibleColumns.rate && (
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {editingRow === item.id ? (
+                          <input
+                            className="border px-2 py-1 rounded w-32"
+                            value={editRowData.rate ?? item.rate ?? ''}
+                            onChange={e => setEditRowData(data => ({ ...data, rate: e.target.value }))}
+                          />
+                        ) : item.rate ? `$${parseFloat(item.rate.toString().replace('$', '')).toFixed(2)}` : '-'}
+                      </td>
+                    )}
+                    {getVisibleColumns.rate_per_hour && (
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {editingRow === item.id ? (
+                          <input
+                            className="border px-2 py-1 rounded w-32"
+                            value={editRowData.rate_per_hour ?? item.rate_per_hour ?? ''}
+                            onChange={e => setEditRowData(data => ({ ...data, rate_per_hour: e.target.value }))}
+                          />
+                        ) : item.rate_per_hour ? `$${parseFloat(item.rate_per_hour.toString().replace('$', '')).toFixed(2)}` : '-'}
+                      </td>
+                    )}
+                    {getVisibleColumns.rate_effective_date && (
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {editingRow === item.id ? (
+                          <input
+                            type="date"
+                            className="border px-2 py-1 rounded w-32"
+                            value={editRowData.rate_effective_date ? formatDate(editRowData.rate_effective_date) : formatDate(item.rate_effective_date || '')}
+                            onChange={e => setEditRowData(data => ({ ...data, rate_effective_date: e.target.value }))}
+                          />
+                        ) : formatText(item.rate_effective_date)}
+                      </td>
+                    )}
+                    {getVisibleColumns.modifier_1 && (
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {editingRow === item.id ? (
+                          <input
+                            className="border px-2 py-1 rounded w-32"
+                            value={editRowData.modifier_1 ?? item.modifier_1 ?? ''}
+                            onChange={e => setEditRowData(data => ({ ...data, modifier_1: e.target.value }))}
+                          />
+                        ) : formatText(item.modifier_1)}
+                      </td>
+                    )}
+                    {getVisibleColumns.modifier_2 && (
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {editingRow === item.id ? (
+                          <input
+                            className="border px-2 py-1 rounded w-32"
+                            value={editRowData.modifier_2 ?? item.modifier_2 ?? ''}
+                            onChange={e => setEditRowData(data => ({ ...data, modifier_2: e.target.value }))}
+                          />
+                        ) : formatText(item.modifier_2)}
+                      </td>
+                    )}
+                    {getVisibleColumns.modifier_3 && (
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {editingRow === item.id ? (
+                          <input
+                            className="border px-2 py-1 rounded w-32"
+                            value={editRowData.modifier_3 ?? item.modifier_3 ?? ''}
+                            onChange={e => setEditRowData(data => ({ ...data, modifier_3: e.target.value }))}
+                          />
+                        ) : formatText(item.modifier_3)}
+                      </td>
+                    )}
+                    {getVisibleColumns.modifier_4 && (
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {editingRow === item.id ? (
+                          <input
+                            className="border px-2 py-1 rounded w-32"
+                            value={editRowData.modifier_4 ?? item.modifier_4 ?? ''}
+                            onChange={e => setEditRowData(data => ({ ...data, modifier_4: e.target.value }))}
+                          />
+                        ) : formatText(item.modifier_4)}
+                      </td>
+                    )}
+                    {getVisibleColumns.program && (
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {editingRow === item.id ? (
+                          <input
+                            className="border px-2 py-1 rounded w-32"
+                            value={editRowData.program ?? item.program ?? ''}
+                            onChange={e => setEditRowData(data => ({ ...data, program: e.target.value }))}
+                          />
+                        ) : formatText(item.program)}
+                      </td>
+                    )}
+                    {getVisibleColumns.location_region && (
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {editingRow === item.id ? (
+                          <input
+                            className="border px-2 py-1 rounded w-32"
+                            value={editRowData.location_region ?? item.location_region ?? ''}
+                            onChange={e => setEditRowData(data => ({ ...data, location_region: e.target.value }))}
+                          />
+                        ) : formatText(item.location_region)}
+                      </td>
+                    )}
+                    {getVisibleColumns.provider_type && (
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {editingRow === item.id ? (
+                          <input
+                            className="border px-2 py-1 rounded w-32"
+                            value={editRowData.provider_type ?? item.provider_type ?? ''}
+                            onChange={e => setEditRowData(data => ({ ...data, provider_type: e.target.value }))}
+                          />
+                        ) : formatText(item.provider_type)}
+                      </td>
+                    )}
                     <td className="p-4 text-sm text-gray-700 border-b">
                       {editingRow === item.id ? (
                         <>
                           <button
                             className="px-2 py-1 bg-green-600 text-white rounded mr-2"
-                            onClick={() => handleSave({ ...item, id: item.id })}
+                            onClick={() => handleSave(item)}
                           >
                             Save
                           </button>
